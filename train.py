@@ -19,22 +19,34 @@ def main(args):
 
     prepare(args)
     model = PedalNet(vars(args))
+
+    # Configure accelerator and devices
+    if args.cpu:
+        accelerator = "cpu"
+        devices = 1
+    elif args.tpu_cores:
+        accelerator = "tpu"
+        devices = args.tpu_cores
+    else:
+        accelerator = "gpu"
+        devices = args.devices
+
     trainer = pl.Trainer(
-        resume_from_checkpoint=args.model if args.resume else None,
-        gpus=None if args.cpu or args.tpu_cores else args.gpus,
-        tpu_cores=args.tpu_cores,
+        accelerator=accelerator,
+        devices=devices,
         log_every_n_steps=100,
         max_epochs=args.max_epochs,
     )
 
-    trainer.fit(model)
+    ckpt_path = args.model if args.resume else None
+    trainer.fit(model, ckpt_path=ckpt_path)
     trainer.save_checkpoint(args.model)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("in_file", nargs="?", default="data/in.wav")
-    parser.add_argument("out_file", nargs="?", default="data/out.wav")
+    parser.add_argument("in_file", nargs="?", default="data/ts9_test1_in_FP32.wav")
+    parser.add_argument("out_file", nargs="?", default="data/ts9_test1_out_FP32.wav")
     parser.add_argument("--sample_time", type=float, default=100e-3)
     parser.add_argument("--normalize", type=bool, default=True)
 
@@ -46,12 +58,13 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--learning_rate", type=float, default=3e-3)
 
-    parser.add_argument("--max_epochs", type=int, default=1000)
-    parser.add_argument("--gpus", type=int, default=-1)
+    parser.add_argument("--max_epochs", type=int, default=2000)
+    parser.add_argument("--devices", type=int, default=1, help="Number of devices to use (e.g., GPUs)")
+    parser.add_argument("--gpus", type=int, default=1)
     parser.add_argument("--tpu_cores", type=int, default=None)
     parser.add_argument("--cpu", action="store_true")
 
-    parser.add_argument("--model", type=str, default="models/pedalnet/pedalnet.ckpt")
+    parser.add_argument("--model", type=str, default="models/pedalnet/ppedalnet.ckpt")
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
     main(args)

@@ -7,6 +7,7 @@ import pytorch_lightning as pl
 import pickle
 import os
 
+torch.set_float32_matmul_precision('high')
 
 class CausalConv1d(torch.nn.Conv1d):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, dilation=1, groups=1, bias=True):
@@ -109,13 +110,18 @@ def pre_emphasis_filter(x, coeff=0.95):
 class PedalNet(pl.LightningModule):
     def __init__(self, hparams):
         super(PedalNet, self).__init__()
+
+        self.training_step_outputs = []
+
+        self.save_hyperparameters(hparams)
+
         self.wavenet = WaveNet(
             num_channels=hparams["num_channels"],
             dilation_depth=hparams["dilation_depth"],
             num_repeat=hparams["num_repeat"],
             kernel_size=hparams["kernel_size"],
         )
-        self.hparams = hparams
+        # self.hparams = hparams
 
     def prepare_data(self):
         ds = lambda x, y: TensorDataset(torch.from_numpy(x), torch.from_numpy(y))
@@ -132,10 +138,11 @@ class PedalNet(pl.LightningModule):
             shuffle=True,
             batch_size=self.hparams.batch_size,
             num_workers=4,
+            persistent_workers=True
         )
 
     def val_dataloader(self):
-        return DataLoader(self.valid_ds, batch_size=self.hparams.batch_size, num_workers=4)
+        return DataLoader(self.valid_ds, batch_size=self.hparams.batch_size, num_workers=4, persistent_workers=True)
 
     def forward(self, x):
         return self.wavenet(x)
@@ -145,6 +152,7 @@ class PedalNet(pl.LightningModule):
         y_pred = self.forward(x)
         loss = error_to_signal(y[:, :, -y_pred.size(2) :], y_pred).mean()
         logs = {"loss": loss}
+        self.training_step_outputs.append(loss)
         return {"loss": loss, "log": logs}
 
     def validation_step(self, batch, batch_idx):
@@ -153,7 +161,8 @@ class PedalNet(pl.LightningModule):
         loss = error_to_signal(y[:, :, -y_pred.size(2) :], y_pred).mean()
         return {"val_loss": loss}
 
-    def validation_epoch_end(self, outs):
-        avg_loss = torch.stack([x["val_loss"] for x in outs]).mean()
+    def on_train_epoch_end(self):
+        avg_loss = torch.stack(self.training_step_outputs).mean()
         logs = {"val_loss": avg_loss}
+        self.training_step_outputs.clear()
         return {"avg_val_loss": avg_loss, "log": logs}
