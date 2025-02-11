@@ -3,11 +3,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import TensorDataset, DataLoader
 
+import wandb
+from pytorch_lightning.loggers import WandbLogger
 import pytorch_lightning as pl
 import pickle
 import os
 
-torch.set_float32_matmul_precision('high')
 
 class CausalConv1d(torch.nn.Conv1d):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, dilation=1, groups=1, bias=True):
@@ -111,6 +112,10 @@ class PedalNet(pl.LightningModule):
     def __init__(self, hparams):
         super(PedalNet, self).__init__()
 
+        torch.set_float32_matmul_precision('high')
+        wandb.init(project="pedalnet-training")
+        # wandb_logger = WandbLogger(project="pedalnet-training")
+
         self.training_step_outputs = []
 
         self.save_hyperparameters(hparams)
@@ -151,18 +156,27 @@ class PedalNet(pl.LightningModule):
         x, y = batch
         y_pred = self.forward(x)
         loss = error_to_signal(y[:, :, -y_pred.size(2) :], y_pred).mean()
-        logs = {"loss": loss}
+        
+        wandb.log({"train_loss": loss})
+
+        self.log("train_loss", loss, on_epoch=True, prog_bar=True, logger=True)
         self.training_step_outputs.append(loss)
-        return {"loss": loss, "log": logs}
+        return loss
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_pred = self.forward(x)
-        loss = error_to_signal(y[:, :, -y_pred.size(2) :], y_pred).mean()
+        loss = error_to_signal(y[:, :, -y_pred.size(2):], y_pred).mean()
+        
+        wandb.log({"val_loss": loss})
+
+        self.log("val_loss", loss, on_epoch=True, prog_bar=True, logger=True)
         return {"val_loss": loss}
 
     def on_train_epoch_end(self):
         avg_loss = torch.stack(self.training_step_outputs).mean()
-        logs = {"val_loss": avg_loss}
+        
+        wandb.log({"avg_train_loss": avg_loss})
+        
+        self.log("avg_train_loss", avg_loss, on_epoch=True, prog_bar=True, logger=True)
         self.training_step_outputs.clear()
-        return {"avg_val_loss": avg_loss, "log": logs}
