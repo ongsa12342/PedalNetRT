@@ -3,8 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import TensorDataset, DataLoader
 
-import wandb
-from pytorch_lightning.loggers import WandbLogger
 import pytorch_lightning as pl
 import pickle
 import os
@@ -113,8 +111,6 @@ class PedalNet(pl.LightningModule):
         super(PedalNet, self).__init__()
 
         torch.set_float32_matmul_precision('high')
-        wandb.init(project="pedalnet-training")
-        # wandb_logger = WandbLogger(project="pedalnet-training")
 
         self.training_step_outputs = []
 
@@ -135,19 +131,31 @@ class PedalNet(pl.LightningModule):
         self.valid_ds = ds(data["x_valid"], data["y_valid"])
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.wavenet.parameters(), lr=self.hparams.learning_rate)
+        optimizer = torch.optim.Adam(self.wavenet.parameters(), lr=self.hparams.learning_rate)
+
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, factor=0.5, patience=5, min_lr=1e-7
+        )
+        return {
+       "optimizer": optimizer,
+       "lr_scheduler": {
+           "scheduler": scheduler,
+           "monitor": "val_loss"
+       }
+    }
 
     def train_dataloader(self):
         return DataLoader(
             self.train_ds,
             shuffle=True,
             batch_size=self.hparams.batch_size,
-            num_workers=4,
-            persistent_workers=True
+            num_workers=0,
+            # persistent_workers=True,
+            pin_memory=True
         )
 
     def val_dataloader(self):
-        return DataLoader(self.valid_ds, batch_size=self.hparams.batch_size, num_workers=4, persistent_workers=True)
+        return DataLoader(self.valid_ds, batch_size=self.hparams.batch_size, num_workers=0,  pin_memory=True)
 
     def forward(self, x):
         return self.wavenet(x)
@@ -156,8 +164,6 @@ class PedalNet(pl.LightningModule):
         x, y = batch
         y_pred = self.forward(x)
         loss = error_to_signal(y[:, :, -y_pred.size(2) :], y_pred).mean()
-        
-        wandb.log({"train_loss": loss})
 
         self.log("train_loss", loss, on_epoch=True, prog_bar=True, logger=True)
         self.training_step_outputs.append(loss)
@@ -167,16 +173,12 @@ class PedalNet(pl.LightningModule):
         x, y = batch
         y_pred = self.forward(x)
         loss = error_to_signal(y[:, :, -y_pred.size(2):], y_pred).mean()
-        
-        wandb.log({"val_loss": loss})
 
         self.log("val_loss", loss, on_epoch=True, prog_bar=True, logger=True)
         return {"val_loss": loss}
 
     def on_train_epoch_end(self):
         avg_loss = torch.stack(self.training_step_outputs).mean()
-        
-        wandb.log({"avg_train_loss": avg_loss})
         
         self.log("avg_train_loss", avg_loss, on_epoch=True, prog_bar=True, logger=True)
         self.training_step_outputs.clear()
