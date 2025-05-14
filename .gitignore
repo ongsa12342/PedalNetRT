@@ -149,3 +149,5 @@ cython_debug/
 /pedalnet_cpp
 /Dataset
 /models
+/Predicted
+/Output
