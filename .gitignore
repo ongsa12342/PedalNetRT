@@ -143,3 +143,9 @@ dmypy.json
 cython_debug/
 /wandb
 /spectrograms
+/Dataset
+/Dataset
+/Sound
+/pedalnet_cpp
+/Dataset
+/models
