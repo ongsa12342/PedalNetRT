@@ -6,39 +6,15 @@ import os
 
 from model import PedalNet
 
-
 def convert(args):
     """
     Converts a *.ckpt model from PedalNet into a .json format used in WaveNetVA.
-
-    Current changes to the original PedalNet model to match WaveNetVA include:
-      1. Added CausalConv1d() to use causal padding
-      2. Added an input layer, which is a Conv1d(in_channls=1, out_channels=num_channels, kernel_size=1)
-      3. Instead of two conv_stacks for tanh and sigm, used a single hidden layer with input_channels=16,
-         output_channels=32, then split the matrix for tanh and sigm calculation.
-
-      Note: The original PedalNet model was intended for use on PCM Int16 format wave files. The WaveNetVA is
-            intended as a plugin, which processes float32 audio data. The PedalNet model must be trained on wave files
-            saved as Float32 data, which has sample data in the range -1 to 1.
-
-      Note: The WaveNetVA plugin doesn't perform the standardization step as in predict.py. With the standardization step
-            omitted, the signals match between the plugin with converted model, and the predict.py output.
-
-      The model parameters used for conversion testing match the Wavenetva1 model (limited testing using other parameters):
-            --num_channels=16, --dilation_depth=10, --num_repeat=1, --kernel_size=3
     """
 
-    # Permute tensors to match Tensorflow format with .permute(a,b,c):
-    a, b, c = (
-        2,
-        1,
-        0,
-    )  # Pytorch uses (out_channels, in_channels, kernel_size), TensorFlow uses (kernel_size, in_channels, out_channels)
+    a, b, c = (2, 1, 0)
     model = PedalNet.load_from_checkpoint(checkpoint_path=args.model)
-
     sd = model.state_dict()
 
-    # Get hparams from model
     hparams = model.hparams
     residual_channels = hparams.num_channels
     filter_width = hparams.kernel_size
@@ -62,7 +38,12 @@ def convert(args):
                 {
                     "layer_idx": i,
                     "data": [
-                        str(w) for w in (sd["wavenet.input_layer.weight"]).permute(a, b, c).flatten().numpy().tolist()
+                        str(w) for w in sd["wavenet.input_layer.weight"]
+                                    .cpu()
+                                    .permute(a, b, c)
+                                    .flatten()
+                                    .numpy()
+                                    .tolist()
                     ],
                     "name": "W",
                 }
@@ -70,7 +51,13 @@ def convert(args):
             data_out["variables"].append(
                 {
                     "layer_idx": i,
-                    "data": [str(b) for b in (sd["wavenet.input_layer.bias"]).flatten().numpy().tolist()],
+                    "data": [
+                        str(bias) for bias in sd["wavenet.input_layer.bias"]
+                                     .cpu()
+                                     .flatten()
+                                     .numpy()
+                                     .tolist()
+                    ],
                     "name": "b",
                 }
             )
@@ -80,7 +67,12 @@ def convert(args):
                 {
                     "layer_idx": i,
                     "data": [
-                        str(w) for w in (sd["wavenet.linear_mix.weight"]).permute(a, b, c).flatten().numpy().tolist()
+                        str(w) for w in sd["wavenet.linear_mix.weight"]
+                                    .cpu()
+                                    .permute(a, b, c)
+                                    .flatten()
+                                    .numpy()
+                                    .tolist()
                     ],
                     "name": "W",
                 }
@@ -89,7 +81,12 @@ def convert(args):
             data_out["variables"].append(
                 {
                     "layer_idx": i,
-                    "data": [str(b) for b in (sd["wavenet.linear_mix.bias"]).numpy().tolist()],
+                    "data": [
+                        str(bias) for bias in sd["wavenet.linear_mix.bias"]
+                                     .cpu()
+                                     .numpy()
+                                     .tolist()
+                    ],
                     "name": "b",
                 }
             )
@@ -100,7 +97,12 @@ def convert(args):
                     "layer_idx": i,
                     "data": [
                         str(w)
-                        for w in sd["wavenet.hidden." + str(i) + ".weight"].permute(a, b, c).flatten().numpy().tolist()
+                        for w in sd[f"wavenet.hidden.{i}.weight"]
+                                   .cpu()
+                                   .permute(a, b, c)
+                                   .flatten()
+                                   .numpy()
+                                   .tolist()
                     ],
                     "name": "W_conv",
                 }
@@ -108,7 +110,14 @@ def convert(args):
             data_out["variables"].append(
                 {
                     "layer_idx": i,
-                    "data": [str(b) for b in sd["wavenet.hidden." + str(i) + ".bias"].flatten().numpy().tolist()],
+                    "data": [
+                        str(bias)
+                        for bias in sd[f"wavenet.hidden.{i}.bias"]
+                                     .cpu()
+                                     .flatten()
+                                     .numpy()
+                                     .tolist()
+                    ],
                     "name": "b_conv",
                 }
             )
@@ -117,11 +126,12 @@ def convert(args):
                     "layer_idx": i,
                     "data": [
                         str(w2)
-                        for w2 in sd["wavenet.residuals." + str(i) + ".weight"]
-                        .permute(a, b, c)
-                        .flatten()
-                        .numpy()
-                        .tolist()
+                        for w2 in sd[f"wavenet.residuals.{i}.weight"]
+                                   .cpu()
+                                   .permute(a, b, c)
+                                   .flatten()
+                                   .numpy()
+                                   .tolist()
                     ],
                     "name": "W_out",
                 }
@@ -129,19 +139,29 @@ def convert(args):
             data_out["variables"].append(
                 {
                     "layer_idx": i,
-                    "data": [str(b2) for b2 in sd["wavenet.residuals." + str(i) + ".bias"].flatten().numpy().tolist()],
+                    "data": [
+                        str(b2)
+                        for b2 in sd[f"wavenet.residuals.{i}.bias"]
+                                   .cpu()
+                                   .flatten()
+                                   .numpy()
+                                   .tolist()
+                    ],
                     "name": "b_out",
                 }
             )
 
-    # output final dictionary to json file
-    with open(args.model.replace(".ckpt", ".json"), "w") as outfile:
+    # Save final dictionary to a .json file
+    out_file = args.model.replace(".ckpt", ".json")
+    with open(out_file, "w") as outfile:
         json.dump(data_out, outfile)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default="models/pedalnet/pedalnet.ckpt")
+    parser.add_argument("--model",
+        default="models\models\Fender_Bassman50_Head\Fender_Bassman50_Head\models\Fender_Bassman50_Head\Fender_Bassman50_Head-epoch=1999.ckpt"
+    )
     parser.add_argument("--format", default="json")
     args = parser.parse_args()
     convert(args)

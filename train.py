@@ -119,8 +119,8 @@ def main(args):
         accelerator = "gpu"
         devices = args.devices
 
-    model_name = args.model.split('/')[-1].split('.')[0]  # e.g. "my_model" from "path/to/my_model.ckpt"
-    # run_name = f"{model_name}_run"
+    model_basename = os.path.basename(args.model)               # e.g. "Fender_deluxe_reverb.ckpt"
+    model_name     = os.path.splitext(model_basename)[0]       # e.g. "Fender_deluxe_reverb"    
 
     wandb_logger = DynamicWandbLogger(
         project="ongsanet-training",
@@ -133,11 +133,12 @@ def main(args):
     wandb_logger.experiment.config.update(vars(args))
     # Model checkpoint callback
     checkpoint_callback = ModelCheckpoint(
-        dirpath=f"models/{model_name}/",
-        filename=f"{model_name}" + "-{epoch:03d}",
-        save_top_k=-1,  # Save all checkpoints
-        every_n_epochs=100  # Save every 100 epochs
+        dirpath=os.path.join("models", model_name),
+        filename=model_name + "-{epoch:03d}",
+        save_top_k=-1,
+        every_n_epochs=1
     )
+
 
     # spectrogram_cb = SpectrogramCallback(every_n_epochs=1000, output_dir='./spectrograms')
 
@@ -159,15 +160,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("in_file", nargs="?", default="D:/Desktop/Archives/FIBO/Year3_2/opentopic/gtrin.wav")
     parser.add_argument("out_file", nargs="?", default="D:/Desktop/Archives/FIBO/Year3_2/opentopic/gtrout.wav")
-    parser.add_argument("--sample_time", type=float, default=1000e-3)
+    parser.add_argument("--sample_time", type=float, default=100e-3)
     parser.add_argument("--normalize", type=bool, default=True)
 
-    parser.add_argument("--num_channels", type=int, default=18) #18
-    parser.add_argument("--dilation_depth", type=int, default=16) #16
-    parser.add_argument("--num_repeat", type=int, default=3)
+    parser.add_argument("--num_channels", type=int, default=18) #18 #4
+    parser.add_argument("--dilation_depth", type=int, default=9) #16 #9
+    parser.add_argument("--num_repeat", type=int, default=2) #3 #2
     parser.add_argument("--kernel_size", type=int, default=3)
 
-    parser.add_argument("--batch_size", type=int, default=64)
+    parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--learning_rate", type=float, default=3e-3)
 
     parser.add_argument("--max_epochs", type=int, default=2000)
@@ -176,7 +177,7 @@ if __name__ == "__main__":
     parser.add_argument("--tpu_cores", type=int, default=None)
     parser.add_argument("--cpu", action="store_true")
 
-    parser.add_argument("--model", type=str, default="models\ongsanettest.ckpt")
+    parser.add_argument("--model", type=str, default="models/test/test.ckpt")
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
     main(args)

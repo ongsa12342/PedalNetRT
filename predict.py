@@ -17,9 +17,9 @@ def save(name, data):
 def predict(args):
     model = PedalNet.load_from_checkpoint(args.model)
     model.eval()
-    train_data = pickle.load(open(os.path.dirname(args.model) + "/data.pickle", "rb"))
+    # train_data = pickle.load(open(os.path.dirname(args.model) + "/data.pickle", "rb"))
 
-    mean, std = train_data["mean"], train_data["std"]
+    # mean, std = train_data["mean"], train_data["std"]
 
     in_rate, in_data = wavfile.read(args.input)
     assert in_rate == 44100, "input data needs to be 44.1 kHz"
@@ -30,7 +30,7 @@ def predict(args):
     in_data = in_data[:length].reshape((-1, 1, sample_size)).astype(np.float32)
 
     # standardize
-    in_data = (in_data - mean) / std
+    # in_data = (in_data - mean) / std
 
     # pad each sample with previous sample
     prev_sample = np.concatenate((np.zeros_like(in_data[0:1]), in_data[:-1]), axis=0)
@@ -49,9 +49,9 @@ def predict(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default="models/pedalnet/pedalnet.ckpt")
-    parser.add_argument("--batch_size", type=int, default=256)
-    parser.add_argument("--sample_time", type=float, default=100e-3)
+    parser.add_argument("--model", default="models\Orange_Rocker30 Head\Orange_Rocker30 Head.ckpt")
+    parser.add_argument("--batch_size", type=int, default=1)
+    parser.add_argument("--sample_time", type=float, default=1000e-3)
     parser.add_argument("input")
     parser.add_argument("output")
     args = parser.parse_args()

@@ -62,6 +62,7 @@ def prepare(args):
         d[key] = (d[key] - d["mean"]) / d["std"]
 
     if not os.path.exists(os.path.dirname(args.model)):
+        print(args.model)
         os.makedirs(os.path.dirname(args.model))
 
     pickle.dump(d, open(os.path.dirname(args.model) + "/data.pickle", "wb"))
