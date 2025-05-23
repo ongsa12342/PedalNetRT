@@ -1,0 +1,24 @@
+# -------- configs/phase1_base.yaml --------
+in_file: Dataset/AD_DA_converter.wav
+out_file: Dataset/VOXac30_custom.wav
+model: models/VOXac30_custom2/VOXac30_custom2.ckpt
+
+sample_time: 0.1
+normalize:    true
+
+# architecture (fixed in Phase 1)
+num_channels: 18
+dilation_depth: 9
+num_repeat: 2
+kernel_size: 3
+
+# will be overwritten by sweep
+batch_size: 128
+learning_rate: 0.003
+
+max_epochs: 800
+devices: 1
+gpus:      2
+tpu_cores: null
+cpu:       false
+resume: false

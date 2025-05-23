@@ -1,0 +1,22 @@
+# -------- sweep_phase1.yaml --------
+program: sweep_lr_batch.py
+method: bayes                 
+metric:
+  name: val_loss
+  goal: minimize
+
+parameters:
+  cfg_template:
+    value: configs/phase1_base.yaml
+
+  ## search space
+  learning_rate:
+    distribution: log_uniform_values
+    min: 1e-4
+    max: 3e-2
+
+  batch_size:
+    values: [64, 128, 256]       
+
+project: ongsanet-training
+entity: test_12342

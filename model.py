@@ -7,6 +7,7 @@ import pytorch_lightning as pl
 import pickle
 import os
 
+import time
 
 class CausalConv1d(torch.nn.Conv1d):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, dilation=1, groups=1, bias=True):
@@ -143,7 +144,7 @@ class PedalNet(pl.LightningModule):
         optimizer = torch.optim.Adam(self.wavenet.parameters(), lr=self.hparams.learning_rate)
 
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, factor=0.5, patience=5, min_lr=1e-7
+        optimizer, factor=0.5, patience=10, min_lr=1e-6
         )
         return {
        "optimizer": optimizer,
@@ -186,8 +187,19 @@ class PedalNet(pl.LightningModule):
         self.log("val_loss", loss, on_epoch=True, prog_bar=True, logger=True)
         return {"val_loss": loss}
 
+    def on_train_epoch_start(self):
+        self.epoch_start = time.time()
+
     def on_train_epoch_end(self):
+        
+        epoch_time = time.time() - self.epoch_start
+        samples = len(self.train_ds) * self.trainer.accumulate_grad_batches
+        self.log("samples_per_sec", samples / epoch_time, on_epoch=True)
+        self.log("epoch_time_s", epoch_time, on_epoch=True)
+
         avg_loss = torch.stack(self.training_step_outputs).mean()
         
         self.log("avg_train_loss", avg_loss, on_epoch=True, prog_bar=True, logger=True)
+        current_lr = self.trainer.optimizers[0].param_groups[0]['lr']
+        self.log("learning_rate", current_lr, on_epoch=True, prog_bar=True, logger=True)
         self.training_step_outputs.clear()

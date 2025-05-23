@@ -20,6 +20,7 @@ import librosa.display
 import wandb
 import pytorch_lightning as pl
 import torch
+from pytorch_lightning.callbacks import EarlyStopping
 
 class SpectrogramCallback(pl.Callback):
     def __init__(self, every_n_epochs=100, output_dir='./spectrograms'):
@@ -104,6 +105,7 @@ def main(args):
         model and is not advised.
 
     """
+    pl.seed_everything(42, workers=True)
 
     prepare(args)
     model = PedalNet(vars(args))
@@ -122,13 +124,15 @@ def main(args):
     model_basename = os.path.basename(args.model)               # e.g. "Fender_deluxe_reverb.ckpt"
     model_name     = os.path.splitext(model_basename)[0]       # e.g. "Fender_deluxe_reverb"    
 
+    run_name = f"{model_name}_C{args.num_channels}_D{args.dilation_depth}_R{args.num_repeat}_K{args.kernel_size}_L{args.learning_rate}"
+
     wandb_logger = DynamicWandbLogger(
         project="ongsanet-training",
-        entity="test_12342"
-        # name="your_run_name",   # optional
-        # log_model=True,         # optional
-        # save_code=True          # optional
+        entity="test_12342",
+        name=run_name,
     )
+
+    wandb_logger.experiment.watch(model, log="all", log_freq=100)
 
     wandb_logger.experiment.config.update(vars(args))
     # Model checkpoint callback
@@ -139,13 +143,14 @@ def main(args):
         every_n_epochs=1
     )
 
-
     # spectrogram_cb = SpectrogramCallback(every_n_epochs=1000, output_dir='./spectrograms')
 
     trainer = pl.Trainer(
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,
+        precision="16-mixed",
+        gradient_clip_val=5.0, 
         log_every_n_steps=10,
         max_epochs=args.max_epochs,
         callbacks=[checkpoint_callback],
@@ -169,7 +174,7 @@ if __name__ == "__main__":
     parser.add_argument("--kernel_size", type=int, default=3)
 
     parser.add_argument("--batch_size", type=int, default=128)
-    parser.add_argument("--learning_rate", type=float, default=3e-3)
+    parser.add_argument("--learning_rate", type=float, default=1e-2)
 
     parser.add_argument("--max_epochs", type=int, default=2000)
     parser.add_argument("--devices", type=int, default=1, help="Number of devices to use (e.g., GPUs)")
