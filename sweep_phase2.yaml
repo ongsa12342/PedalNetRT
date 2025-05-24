@@ -1,0 +1,21 @@
+# -------- sweep_arch_phase.yaml --------
+program: sweep_arch.py
+method: bayes
+metric: {name: val_loss, goal: minimize}
+early_terminate: {type: hyperband, min_iter: 2}
+
+parameters:
+  cfg_template: {value: configs/phase2_base.yaml}
+
+  # ─ Architecture search ─
+  num_channels:   {values: [12, 18, 24, 30, 36, 48]}
+  dilation_depth: {values: [7, 8, 9, 10, 11]}
+  num_repeat:     {values: [1, 2, 3, 4]}
+  kernel_size:    {values: [2, 3, 5]}
+
+  # ─ Fixed HPs (phase-1 best) ─
+  batch_size:    {value: 128}
+  learning_rate: {value: 5e-3}
+
+project: ongsanet-training
+entity:  test_12342

@@ -1,0 +1,25 @@
+# -------- configs/phase2_base.yaml --------
+# I/O
+in_file:  Dataset/AD_DA_converter.wav      # positional → will be appended w/out flag
+out_file: Dataset/VOXac30_custom.wav       # positional → idem
+model:    models/VOXac30_custom2/VOXac30_custom2.ckpt
+
+# Audio pre-proc
+sample_time: 0.1
+normalize:   true        # boolean, will be sent as "--normalize true"
+
+# Architecture defaults (to be overridden by sweep)
+num_channels:    18
+dilation_depth:  9
+num_repeat:      2
+kernel_size:     3
+
+# Training HPs (batch / lr will be overridden by sweep)
+batch_size:     128
+learning_rate:  5e-3
+max_epochs:     800
+devices:        1
+gpus:           2
+tpu_cores:      null     # omitted if null
+cpu:            false
+resume:         false
