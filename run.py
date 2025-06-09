@@ -15,7 +15,13 @@ wav_files = [f for f in os.listdir(dataset_folder) if f.endswith(".wav")]
 
 
 wav_files = [
-        "VOXac30_custom.wav"
+        "VOXac30_custom.wav",
+        "Fender_Bassman50_Head.wav",
+        "Fender_deluxe_reverb.wav",
+        "Marshall_1959Plexi.wav",
+        "Marshall_JCM800.wav",
+        "Orange_Rocker30_Head.wav",
+        "Roland_Jazz_Chorus.wav"
     ]
 
 for filename in wav_files:
@@ -27,8 +33,8 @@ for filename in wav_files:
     out_file = os.path.join(dataset_folder, filename)
     checkpoint_file = os.path.join(
         model_folder,
-        os.path.splitext(filename)[0] + "2",
-        os.path.splitext(filename)[0] + "2.ckpt"
+        os.path.splitext(filename)[0] + "final",
+        os.path.splitext(filename)[0] + "final.ckpt"
     )
 
     # Note we now pass the input wav and output wav as *positional arguments*,

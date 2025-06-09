@@ -8,10 +8,10 @@ parameters:
   cfg_template: {value: configs/phase2_base.yaml}
 
   # ─ Architecture search ─
-  num_channels:   {values: [6, 12, 18, 24, 30]}
-  dilation_depth: {values: [7, 8, 9, 10, 11, 12]}
+  num_channels:   {values: [1, 3, 6, 12]}
+  dilation_depth: {values: [8, 9 , 10]}
   num_repeat:     {values: [1, 2, 3, 4]}
-  kernel_size:    {values: [1, 3, 5, 7, 9]}
+  kernel_size:    {values: [5, 7, 9]}
 
   # ─ Fixed HPs (phase-1 best) ─
   batch_size:    {value: 128}
